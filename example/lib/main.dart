@@ -7,9 +7,29 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:zebra_rfid_reader_sdk/zebra_rfid_reader_sdk.dart';
 
+import 'home_screen.dart';
+
 void main() {
-  runApp(const MaterialApp(home: MyApp()));
+  runApp(const MaterialApp(home: MyApp2()));
 }
+
+
+class MyApp2 extends StatelessWidget {
+  const MyApp2({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Demo',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+      ),
+      home: HomeScreen(),
+    );
+  }
+}
+
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});

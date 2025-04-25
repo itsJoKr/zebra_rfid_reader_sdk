@@ -8,7 +8,11 @@ import androidx.lifecycle.viewModelScope
 import com.borda.zebra_rfid_reader_sdk.utils.*
 import com.zebra.rfid.api3.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.lang.System
+import java.util.concurrent.Executors
 
 
 /**
@@ -30,11 +34,13 @@ class ZebraConnectionHelper(
     private var readerDevice: ReaderDevice? = null
     private var reader: RFIDReader? = null
     private var rfidEventHandler: RfidEventHandler? = null
-
+    private var timer = 0L
+    val nvramDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
 
     init {
-        Log.d(LOG_TAG, "Creating reader for bluetooth connection")
-        readers = Readers(context, ENUM_TRANSPORT.BLUETOOTH)
+        Log.d(LOG_TAG, "Creating reader for serial connection")
+        readers = Readers(context, ENUM_TRANSPORT.RE_SERIAL)
+        availableRFIDReaderList = readers.GetAvailableRFIDReaderList()
     }
 
     override fun onCleared() {
@@ -48,50 +54,51 @@ class ZebraConnectionHelper(
      * @param readerConfig User configuration.
      */
     @Synchronized
-    fun connect(name: String, readerConfig: HashMap<String, Any>) {
-        viewModelScope.launch(Dispatchers.IO) {
+    fun connect(name: String, readerConfig: HashMap<String, Any>, resetTimer: Boolean = true) {
+        if (reader != null && reader!!.isConnected) return
 
-
+        if (resetTimer) {
+            timer = System.currentTimeMillis()
+        }
+        viewModelScope.launch(nvramDispatcher) {
             ReaderResponse.setConnectionStatus(ConnectionStatus.connecting)
             ReaderResponse.setName(name)
             tagHandlerEvent.sendEvent(ReaderResponse.toJson())
 
             Log.d(LOG_TAG, "connect called! ADDRESS -> $name")
-            if (reader != null && reader!!.isConnected) {
-                Log.d(LOG_TAG, "Reader is not null, disconnecting")
-                reader!!.disconnect()
-            }
             try {
-                clearConfiguration()
                 Log.d(LOG_TAG, "Reader is created")
-                availableRFIDReaderList = readers.GetAvailableRFIDReaderList()
+                if (availableRFIDReaderList == null || availableRFIDReaderList!!.isEmpty()) {
+                    Log.d(LOG_TAG, "No readers found, fetching them again")
+                    availableRFIDReaderList = readers.GetAvailableRFIDReaderList()
+                }
                 if (availableRFIDReaderList != null) {
                     Log.d(LOG_TAG, "Readers found: " + availableRFIDReaderList.toString())
 
                     if (availableRFIDReaderList!!.size != 0) {
                         /// get first reader from list
-                        readerDevice =
-                            availableRFIDReaderList!!.first { readerDevice ->
-                                readerDevice.name == name
-                            }
+                        readerDevice = availableRFIDReaderList!!.first()
+                        reader = readerDevice!!.getRFIDReader()
 
-                        reader = readerDevice?.rfidReader
+                        Log.d(LOG_TAG, "Connecting to reader")
+                        reader!!.connect()
+                        Log.d(LOG_TAG, "Connected! : Device -> ${readerDevice!!.name}")
 
-                        if (reader != null) {
-                            Log.d(LOG_TAG, "Connecting to reader")
-                            reader!!.connect()
-                            Log.d(LOG_TAG, "Connected! : Device -> ${readerDevice!!.name}")
+                        /// Configure the reader with the user configuration
+                        configureReader(readerConfig)
 
-                            /// Configure the reader with the user configuration
-                            configureReader(readerConfig)
+                        Log.d(
+                            LOG_TAG,
+                            "Connected after ${(System.currentTimeMillis() - timer) / 1000} seconds"
+                        )
+                        timer = 0
 
-                            /// Trigger battery status
-                            reader!!.Config.getDeviceStatus(true, true, false)
+                        /// Trigger battery status
+                        reader!!.Config.getDeviceStatus(true, true, false)
 
-                            ReaderResponse.setConnectionStatus(ConnectionStatus.connected)
-                            tagHandlerEvent.sendEvent(ReaderResponse.toJson())
+                        ReaderResponse.setConnectionStatus(ConnectionStatus.connected)
+                        tagHandlerEvent.sendEvent(ReaderResponse.toJson())
 
-                        }
                     }
                 }
 
@@ -103,25 +110,27 @@ class ZebraConnectionHelper(
 
             } catch (e: OperationFailureException) {
                 if (e.results == RFIDResults.RFID_READER_REGION_NOT_CONFIGURED) {
-                    setDefaultRegion("TUR", name, readerConfig)
+                    setDefaultRegion("NA", name, readerConfig)
                 }
 
-                e.printStackTrace()
-                Log.d(LOG_TAG, "CONNECTION FAILED 2 ->  ${e.results}")
-                ReaderResponse.setAsConnectionError()
-                tagHandlerEvent.sendEvent(ReaderResponse.toJson())
+                if (e.results == RFIDResults.RFID_READER_REGION_NOT_CONFIGURED) {
+                    if (reader != null && reader!!.isConnected) reader!!.disconnect()
+                    delay(1000)
+                    connect(name, readerConfig, resetTimer = false)
+                    Log.d(LOG_TAG, "CONNECTION FAILED 2 -> RFID_READER_REGION_NOT_CONFIGURED")
+                } else {
+                    Log.d(LOG_TAG, "CONNECTION FAILED 2 -> ${e.results}")
+                    e.printStackTrace()
+                    if (reader != null && reader!!.isConnected) reader!!.disconnect()
+                    delay(1000)
+                    ReaderResponse.setConnectionStatus(ConnectionStatus.failed)
+                    tagHandlerEvent.sendEvent(ReaderResponse.toJson())
+                }
 
             }
         }
     }
 
-
-    /**
-     * Finds the tag with the given tag ID.
-     *
-     * @param tag The tag ID to find.
-     */
-    @Synchronized
     fun findTheTag(tag: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -144,10 +153,6 @@ class ZebraConnectionHelper(
         }
     }
 
-    /**
-     * Stops finding the tag.
-     */
-    @Synchronized
     fun stopFindingTheTag() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -169,21 +174,14 @@ class ZebraConnectionHelper(
         }
     }
 
-    /**
-     * Resets the RFID reader configuration and clears associated resources.
-     */
     private fun clearConfiguration() {
-        readers = Readers(context, ENUM_TRANSPORT.BLUETOOTH)
+        readers = Readers(context, ENUM_TRANSPORT.RE_SERIAL)
         availableRFIDReaderList = null
         readerDevice = null
         reader = null
         rfidEventHandler = null
     }
 
-    /**
-     * Disconnects the RFID reader and cleans up all resources.
-     */
-    @Synchronized
     fun disconnect() {
         try {
             reader!!.disconnect()
@@ -202,12 +200,6 @@ class ZebraConnectionHelper(
         }
     }
 
-    /**
-     * Configures the reader.
-     *
-     * @param readerConfig User configuration.
-     */
-    @Synchronized
     private fun configureReader(readerConfig: HashMap<String, Any>) {
         if (reader!!.isConnected) {
             Log.d(TAG, "ConfigureReader " + reader!!.hostName)
@@ -228,32 +220,34 @@ class ZebraConnectionHelper(
             triggerInfo.StopTrigger.triggerType = STOP_TRIGGER_TYPE.STOP_TRIGGER_TYPE_IMMEDIATE
             try {
 
-                rfidEventHandler = RfidEventHandler(reader!!, tagHandlerEvent, tagFindHandler, readTagEvent)
+                rfidEventHandler =
+                    RfidEventHandler(reader!!, tagHandlerEvent, tagFindHandler, readTagEvent)
                 reader!!.Events.addEventsListener(rfidEventHandler)
                 reader!!.Events.setHandheldEvent(true)
                 reader!!.Events.setTagReadEvent(true)
-                reader!!.Events.setBatteryEvent(true)
-                reader!!.Events.setReaderDisconnectEvent(true)
-                reader!!.Events.setOperationEndSummaryEvent(true)
-                reader!!.Events.setInventoryStartEvent(true)
-                reader!!.Events.setInventoryStopEvent(true)
+//                reader!!.Events.setBatteryEvent(true)
+//                reader!!.Events.setReaderDisconnectEvent(true)
+//                reader!!.Events.setOperationEndSummaryEvent(true)
+//                reader!!.Events.setInventoryStartEvent(true)
+//                reader!!.Events.setInventoryStopEvent(true)
                 reader!!.Events.setAttachTagDataWithReadEvent(false)
-                reader!!.Events.setInfoEvent(true)
-                reader!!.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, true)
-                reader!!.Config.startTrigger = triggerInfo.StartTrigger
-                reader!!.Config.stopTrigger = triggerInfo.StopTrigger
+//                reader!!.Events.setInfoEvent(true)
+//                reader!!.Config.setTriggerMode(ENUM_TRIGGER_MODE.RFID_MODE, true)
+//                reader!!.Config.startTrigger = triggerInfo.StartTrigger
+//                reader!!.Config.stopTrigger = triggerInfo.StopTrigger
 
-                val s1SingulationControl = reader!!.Config.Antennas.getSingulationControl(1)
-                s1SingulationControl.session = SESSION.SESSION_S0
-                s1SingulationControl.Action.inventoryState = INVENTORY_STATE.INVENTORY_STATE_A
-                s1SingulationControl.Action.slFlag = SL_FLAG.SL_ALL
-                reader!!.Config.Antennas.setSingulationControl(1, s1SingulationControl)
-                reader!!.Actions.PreFilters.deleteAll()
+//                val s1SingulationControl = reader!!.Config.Antennas.getSingulationControl(1)
+//                s1SingulationControl.session = SESSION.SESSION_S0
+//                s1SingulationControl.Action.inventoryState = INVENTORY_STATE.INVENTORY_STATE_A
+//                s1SingulationControl.Action.slFlag = SL_FLAG.SL_ALL
+//                reader!!.Config.Antennas.setSingulationControl(1, s1SingulationControl)
+//                reader!!.Actions.PreFilters.deleteAll()
+//
+//                setDynamicPower(isDynamicPowerEnable)
+//                setBeeperVolumeConfig(beeperVolume)
+//                setAntennaConfig(antennaPower)
 
-                setDynamicPower(isDynamicPowerEnable)
-                setBeeperVolumeConfig(beeperVolume)
-                setAntennaConfig(antennaPower)
-
+                setRegion()
             } catch (e: InvalidUsageException) {
                 Log.d(LOG_TAG, "InvalidUsageException -> configureReader")
                 e.printStackTrace()
@@ -262,6 +256,21 @@ class ZebraConnectionHelper(
                 e.printStackTrace()
             }
         }
+    }
+
+    private fun setRegion() {
+        val regionConfig = reader!!.Config.getRegulatoryConfig()
+        val regions = reader!!.ReaderCapabilities.SupportedRegions
+        val regionInfo = regions.getRegionInfo(0)
+        regionConfig.setRegion(regionInfo.getRegionCode())
+        regionConfig.setIsHoppingOn(regionInfo.isHoppingConfigurable())
+        regionConfig.setEnabledChannels(regionInfo.getSupportedChannels())
+        regionConfig.setStandardName(regionInfo.getName())
+        reader!!.Config.setRegulatoryConfig(regionConfig)
+        Log.d(
+            LOG_TAG,
+            "GettRegulatory for region " + regionConfig.getRegion() + " Standard " + regionConfig.getStandardName()
+        )
     }
 
     /**
@@ -297,7 +306,7 @@ class ZebraConnectionHelper(
     private fun setDefaultRegion(
         region: String,
         name: String,
-        readerConfig: HashMap<String, Any>
+        readerConfig: HashMap<String, Any>,
     ) {
         try {
             if (reader != null) {
@@ -335,6 +344,22 @@ class ZebraConnectionHelper(
      */
     fun getAvailableReaderList(): java.util.ArrayList<ReaderDevice> {
         return readers.GetAvailableRFIDReaderList()
+    }
+
+    fun startRfidRead() {
+        if (reader != null) {
+            reader!!.Actions.Inventory.perform()
+        } else {
+            Log.d(LOG_TAG, "Reader is NULL")
+        }
+    }
+
+    fun stopRfidRead() {
+        if (reader != null) {
+            reader!!.Actions.Inventory.stop()
+        } else {
+            Log.d(LOG_TAG, "Reader is NULL")
+        }
     }
 
     /**
@@ -404,6 +429,11 @@ class ZebraConnectionHelper(
                 reader = null
                 readers.Dispose()
             }
+            if (availableRFIDReaderList != null) {
+                availableRFIDReaderList!!.clear()
+                availableRFIDReaderList = null
+            }
+
 
         } catch (e: Exception) {
             e.printStackTrace()

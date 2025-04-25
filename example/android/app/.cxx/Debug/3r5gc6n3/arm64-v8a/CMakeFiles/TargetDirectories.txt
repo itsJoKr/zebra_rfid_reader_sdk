@@ -1,0 +1,2 @@
+/Users/josip.krnjic/IdeaProjects/zebra_rfid_reader_sdk/example/android/app/.cxx/Debug/3r5gc6n3/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/josip.krnjic/IdeaProjects/zebra_rfid_reader_sdk/example/android/app/.cxx/Debug/3r5gc6n3/arm64-v8a/CMakeFiles/rebuild_cache.dir

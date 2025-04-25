@@ -1,0 +1,1 @@
+/Users/josip.krnjic/IdeaProjects/zebra_rfid_reader_sdk/example/build/app/intermediates/cxx/Debug/3r5gc6n3/obj/armeabi-v7a

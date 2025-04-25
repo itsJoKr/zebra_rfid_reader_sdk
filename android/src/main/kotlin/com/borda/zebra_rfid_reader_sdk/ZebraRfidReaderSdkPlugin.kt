@@ -1,54 +1,34 @@
 package com.borda.zebra_rfid_reader_sdk
 
+import android.content.Context
 import android.util.Log
+import com.borda.zebra_rfid_reader_sdk.ZebraConnectionHelper
+import com.borda.zebra_rfid_reader_sdk.utils.LOG_TAG
 import com.borda.zebra_rfid_reader_sdk.utils.BordaReaderDevice
 import com.borda.zebra_rfid_reader_sdk.utils.ConnectionStatus
-import com.borda.zebra_rfid_reader_sdk.utils.LOG_TAG
 import com.google.gson.Gson
-import io.flutter.embedding.engine.plugins.FlutterPlugin
-import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
-import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 
-/** ZebraRfidReaderSdkPlugin */
-class ZebraRfidReaderSdkPlugin : FlutterPlugin, MethodCallHandler {
-    /// The MethodChannel that will the communication between Flutter and native Android
-    ///
-    /// This local reference serves to register the plugin with the Flutter Engine and unregister it
-    /// when the Flutter Engine is detached from the Activity
-    private lateinit var methodChannel: MethodChannel
+
+/** com.example.movemedical.zebra_rfid_flutter_demo.zebra_rfid_plugin.ZebraRfidReaderSdkPlugin */
+class ZebraRfidReaderSdkPlugin : MethodCallHandler {
     private lateinit var connectionHelper: ZebraConnectionHelper
 
-    private lateinit var tagHandlerEvent: EventChannel
-    private lateinit var tagFindingEvent: EventChannel
-    private lateinit var readTagEvent: EventChannel
-    private lateinit var tagDataEventHandler: TagDataEventHandler
-    private lateinit var readTagEventHandler: TagDataEventHandler
-    private lateinit var tagFindingEventHandler: TagDataEventHandler
-
-
-    override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        methodChannel =
-            MethodChannel(flutterPluginBinding.binaryMessenger, "borda/zebra_rfid_reader_sdk")
-        methodChannel.setMethodCallHandler(this)
-
-        tagHandlerEvent = EventChannel(flutterPluginBinding.binaryMessenger, "tagHandlerEvent")
-        tagFindingEvent = EventChannel(flutterPluginBinding.binaryMessenger, "tagFindingEvent")
-        readTagEvent = EventChannel(flutterPluginBinding.binaryMessenger, "readTagEvent")
-
-        tagDataEventHandler = TagDataEventHandler()
-        tagFindingEventHandler = TagDataEventHandler()
-        readTagEventHandler = TagDataEventHandler()
-
-
-        tagHandlerEvent.setStreamHandler(tagDataEventHandler)
-        tagFindingEvent.setStreamHandler(tagFindingEventHandler)
-        readTagEvent.setStreamHandler(readTagEventHandler)
-        Log.d(LOG_TAG, "onAttachedToEngine called")
+    fun onAttachedToEngine(
+        context: Context,
+        tagDataEventHandler: TagDataEventHandler,
+        tagFindingEventHandler: TagDataEventHandler,
+        readTagEventHandler: TagDataEventHandler
+    ) {
         connectionHelper =
-            ZebraConnectionHelper(flutterPluginBinding.applicationContext, tagDataEventHandler, tagFindingEventHandler, readTagEventHandler)
+            ZebraConnectionHelper(
+                context,
+                tagDataEventHandler,
+                tagFindingEventHandler,
+                readTagEventHandler
+            )
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) =
@@ -64,7 +44,7 @@ class ZebraRfidReaderSdkPlugin : FlutterPlugin, MethodCallHandler {
 
             "disconnect" -> {
                 Log.d(LOG_TAG, "disconnect called")
-                connectionHelper.disconnect()
+                connectionHelper.dispose()
             }
 
             "setAntennaPower" -> {
@@ -108,13 +88,24 @@ class ZebraRfidReaderSdkPlugin : FlutterPlugin, MethodCallHandler {
                 result.success(Gson().toJson(dataList))
             }
 
+            "startInventory" -> {
+                Log.d(LOG_TAG, "startRfidRead called")
+                connectionHelper.startRfidRead()
+            }
+
+            "stopInventory" -> {
+                Log.d(LOG_TAG, "stopRfidRead called")
+                connectionHelper.stopRfidRead()
+            }
+
             else -> result.notImplemented()
         }
 
-    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        methodChannel.setMethodCallHandler(null)
-        tagHandlerEvent.setStreamHandler(null)
-        tagFindingEvent.setStreamHandler(null)
-        connectionHelper.dispose()
-    }
+//    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+//
+////        methodChannel.setMethodCallHandler(null)
+////        tagHandlerEvent.setStreamHandler(null)
+////        tagFindingEvent.setStreamHandler(null)
+//        connectionHelper.dispose()
+//    }
 }

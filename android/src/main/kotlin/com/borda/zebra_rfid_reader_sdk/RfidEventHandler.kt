@@ -3,16 +3,14 @@ package com.borda.zebra_rfid_reader_sdk
 import android.util.Log
 import com.borda.zebra_rfid_reader_sdk.utils.*
 import com.zebra.rfid.api3.*
-import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 /**
  * Handles RFID events such as tag reads, status changes, and disconnections.
  *
  * @property reader The RFID reader instance.
  * @property tagHandlerEvent The event handler for tag data events.
- * @property tagFindHandler The event handler for tag find events.
+ * @property tagFindHandler The event handler for tag find events.utils
  */
 class RfidEventHandler(
     private var reader: RFIDReader,
@@ -34,7 +32,7 @@ class RfidEventHandler(
                 if (myTags[index].isContainsLocationInfo) {
                     TagLocationingResponse.setDistancePercent(myTags[index].LocationInfo.relativeDistance.toInt())
                     tagFindHandler.sendEvent(TagLocationingResponse.toJson())
-                }else{
+                } else {
                     val tagData = TagDataResponse(
                         myTags[index].tagID,
                         Date(System.currentTimeMillis()).toString()
@@ -54,12 +52,12 @@ class RfidEventHandler(
 
         /// Battery Event
         if (rfidStatusEvents.StatusEventData.statusEventType === STATUS_EVENT_TYPE.BATTERY_EVENT) {
-            val batteryData: Events.BatteryData = rfidStatusEvents.StatusEventData.BatteryData
+            val batteryData: IEvents.BatteryData = rfidStatusEvents.StatusEventData.BatteryData
             Log.d(LOG_TAG, "Battery Event: $batteryData")
-            Log.d(LOG_TAG, "IS CHARGING -> ${batteryData.charging}")
+            Log.d(LOG_TAG, "IS CHARGING -> ${batteryData.getCharging()}")
 
             ReaderResponse.setConnectionStatus(ConnectionStatus.connected)
-            ReaderResponse.setBatteryLevel(batteryData.level.toString())
+            ReaderResponse.setBatteryLevel(batteryData.getLevel().toString())
             tagHandlerEvent.sendEvent(ReaderResponse.toJson())
 
         }
@@ -69,7 +67,7 @@ class RfidEventHandler(
             Log.d(LOG_TAG, "DISCONNECTION_EVENT")
             reader.disconnect()
 
-            ReaderResponse.reset()
+            ReaderResponse.disconnected()
             TagLocationingResponse.reset()
             tagHandlerEvent.sendEvent(ReaderResponse.toJson())
             tagFindHandler.sendEvent(TagLocationingResponse.toJson())

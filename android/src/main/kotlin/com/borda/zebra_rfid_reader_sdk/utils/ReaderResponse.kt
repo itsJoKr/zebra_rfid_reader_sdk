@@ -23,7 +23,7 @@ object ReaderResponse {
      * @param connectionStatus
      */
     fun setConnectionStatus(connectionStatus: ConnectionStatus) {
-        this.connectionStatus = connectionStatus
+        ReaderResponse.connectionStatus = connectionStatus
     }
 
     /**
@@ -32,7 +32,7 @@ object ReaderResponse {
      * @param name
      */
     fun setName(name: String?) {
-        this.name = name
+        ReaderResponse.name = name
     }
 
     /**
@@ -41,24 +41,32 @@ object ReaderResponse {
      * @param batteryLevel
      */
     fun setBatteryLevel(batteryLevel: String?) {
-        this.batteryLevel = batteryLevel
+        ReaderResponse.batteryLevel = batteryLevel
     }
 
     /**
      * Resets all reader response properties to their initial values.
      */
     fun reset() {
-        this.batteryLevel = null
-        this.connectionStatus = ConnectionStatus.notConnected
-        this.name = null
+        batteryLevel = null
+        connectionStatus = ConnectionStatus.notConnected
+        name = null
+    }
+
+    /**
+     * Sets the connection status to "disconnected".
+     */
+    fun disconnected() {
+        batteryLevel = null
+        connectionStatus = ConnectionStatus.disconnected
     }
 
     /**
      * Sets the connection status to "failed".
      */
     fun setAsConnectionError() {
-        this.batteryLevel = null
-        this.connectionStatus = ConnectionStatus.failed
+        batteryLevel = null
+        connectionStatus = ConnectionStatus.failed
     }
 
     /**
@@ -67,7 +75,7 @@ object ReaderResponse {
      * @param anntennaRange
      */
     fun setAntennaRange(antennaRange: IntArray?) {
-        this.antennaRange = antennaRange
+        ReaderResponse.antennaRange = antennaRange
     }
     /**
      *  Return the existing singleton object itself

@@ -2,7 +2,7 @@ group 'com.borda.zebra_rfid_reader_sdk'
 version '1.0-SNAPSHOT'
 
 buildscript {
-    ext.kotlin_version = '1.7.10'
+    ext.kotlin_version = '1.8.10'
     repositories {
         google()
         mavenCentral()
@@ -12,7 +12,6 @@ buildscript {
     dependencies {
         classpath 'com.android.tools.build:gradle:7.2.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-
     }
 }
 
@@ -28,6 +27,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
+    namespace 'com.borda.zebra_rfid_reader_sdk'
     compileSdkVersion 34
 
     compileOptions {
@@ -45,19 +45,24 @@ android {
 
     defaultConfig {
         minSdkVersion 26
+        targetSdkVersion 34
     }
    // ndkVersion '25.1.8937393'
     buildToolsVersion '30.0.3'
 }
 
 dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+
     implementation fileTree(dir: 'gradle/wrapper', include: ['*.aar', '*.jar'], exclude: [])
+    implementation fileTree(dir: 'libs-11', include: ['*.aar'])
     implementation 'androidx.core:core-ktx:1.6.0'
     implementation 'androidx.appcompat:appcompat:1.5.1'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.4.0'
     implementation 'com.google.code.gson:gson:2.9.0'
-    implementation project(path: ':RFIDAPI3Library')
 
 
+    api project(':rfid-library')
 
+//    implementation project(path: ':rfid-library')
 }
