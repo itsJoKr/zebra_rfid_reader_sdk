@@ -55,14 +55,16 @@ dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
 
     implementation fileTree(dir: 'gradle/wrapper', include: ['*.aar', '*.jar'], exclude: [])
-    implementation fileTree(dir: 'libs-11', include: ['*.aar'])
+    implementation fileTree(dir: 'rfid-library', include: ['*.aar'])
     implementation 'androidx.core:core-ktx:1.6.0'
     implementation 'androidx.appcompat:appcompat:1.5.1'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.4.0'
     implementation 'com.google.code.gson:gson:2.9.0'
 
 
-    api project(':rfid-library')
+    implementation project(':rfidlibrary')
 
 //    implementation project(path: ':rfid-library')
+   
+    // implementation project(path: ':RFIDAPI3Library')
 }

@@ -4,7 +4,7 @@ import 'dart:developer';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
+// import 'package:permission_handler/permission_handler.dart';
 import 'package:zebra_rfid_reader_sdk/zebra_rfid_reader_sdk.dart';
 
 import 'home_screen.dart';
@@ -12,7 +12,6 @@ import 'home_screen.dart';
 void main() {
   runApp(const MaterialApp(home: MyApp2()));
 }
-
 
 class MyApp2 extends StatelessWidget {
   const MyApp2({super.key});
@@ -29,7 +28,6 @@ class MyApp2 extends StatelessWidget {
     );
   }
 }
-
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -99,8 +97,8 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> requestAccess() async {
-    await Permission.bluetoothScan.request().isGranted;
-    await Permission.bluetoothConnect.request().isGranted;
+    // await Permission.bluetoothScan.request().isGranted;
+    // await Permission.bluetoothConnect.request().isGranted;
   }
 
   Future<void> getAvailableReaderList() async {

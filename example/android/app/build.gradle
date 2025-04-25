@@ -77,7 +77,8 @@ flutter {
 dependencies {
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
 
-    api project(':rfid-library')
+    api project(':rfidlibrary')
+    implementation project(':zebra_rfid_reader_sdk')
 //    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 //    implementation fileTree(dir: 'libs-11', include: ['*.jar', '*.aar'])
 }
